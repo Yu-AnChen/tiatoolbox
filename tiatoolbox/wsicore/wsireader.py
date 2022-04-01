@@ -153,7 +153,7 @@ class WSIReader:
             input_img = np.load(input_img)
             return VirtualWSIReader(input_img, mpp=mpp, power=power)
 
-        if suffixes[-2:] in ([".ome", ".tiff"],):
+        if suffixes[-2:] in ([".ome", ".tiff"], [".ome", ".tif"]):
             return TIFFWSIReader(input_img, mpp=mpp, power=power)
 
         if suffixes[-1] in (".jpg", ".jpeg", ".png", ".tif", ".tiff"):
@@ -1969,12 +1969,12 @@ class TIFFWSIReader(WSIReader):
         input_img: Union[str, pathlib.Path, np.ndarray],
         mpp: Optional[Tuple[Number, Number]] = None,
         power: Optional[Number] = None,
-        series="auto",
+        series=0,
         cache_size=2**28,
     ) -> None:
         super().__init__(input_img=input_img, mpp=mpp, power=power)
         self.tiff = tifffile.TiffFile(self.input_path)
-        self._axes = self.tiff.pages[0].axes
+        self._axes = "SYX"
         if not any([self.tiff.is_svs, self.tiff.is_ome]):
             raise ValueError("Unsupported TIFF WSI format.")
 
@@ -2127,25 +2127,25 @@ class TIFFWSIReader(WSIReader):
             warnings.warn("Only one MPP value found. Using it for both X  and Y.")
             mpp = [mppx or mppy] * 2
 
-        instrument_ref = xml_series.find("ome:InstrumentRef", namespaces)
-        objective_settings = xml_series.find("ome:ObjectiveSettings", namespaces)
-        instrument_ref_id = instrument_ref.attrib["ID"]
-        objective_settings_id = objective_settings.attrib["ID"]
-        instruments = {
-            instrument.attrib["ID"]: instrument
-            for instrument in xml.findall("ome:Instrument", namespaces)
-        }
-        objectives = {
-            (instrument_id, objective.attrib["ID"]): objective
-            for instrument_id, instrument in instruments.items()
-            for objective in instrument.findall("ome:Objective", namespaces)
-        }
+        # instrument_ref = xml_series.find("ome:InstrumentRef", namespaces)
+        # objective_settings = xml_series.find("ome:ObjectiveSettings", namespaces)
+        # instrument_ref_id = instrument_ref.attrib["ID"]
+        # objective_settings_id = objective_settings.attrib["ID"]
+        # instruments = {
+        #     instrument.attrib["ID"]: instrument
+        #     for instrument in xml.findall("ome:Instrument", namespaces)
+        # }
+        # objectives = {
+        #     (instrument_id, objective.attrib["ID"]): objective
+        #     for instrument_id, instrument in instruments.items()
+        #     for objective in instrument.findall("ome:Objective", namespaces)
+        # }
 
-        try:
-            objective = objectives[(instrument_ref_id, objective_settings_id)]
-            objective_power = float(objective.attrib.get("NominalMagnification"))
-        except KeyError:
-            raise KeyError("No matching Instrument for image InstrumentRef in OME-XML.")
+        # try:
+        #     objective = objectives[(instrument_ref_id, objective_settings_id)]
+        #     objective_power = float(objective.attrib.get("NominalMagnification"))
+        # except KeyError:
+        #     raise KeyError("No matching Instrument for image InstrumentRef in OME-XML.")
 
         return {
             "objective_power": objective_power,
