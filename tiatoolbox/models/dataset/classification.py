@@ -11,7 +11,7 @@ from tiatoolbox.models.dataset import abc
 from tiatoolbox.tools.patchextraction import PatchExtractor
 from tiatoolbox.utils.misc import imread
 from tiatoolbox.wsicore.wsimeta import WSIMeta
-from tiatoolbox.wsicore.wsireader import VirtualWSIReader, get_wsireader
+from tiatoolbox.wsicore.wsireader import VirtualWSIReader, get_wsireader, WSIReader
 
 
 class _TorchPreprocCaller:
@@ -102,7 +102,7 @@ class PatchDataset(abc.PatchDatasetABC):
         self.labels = labels
 
         # perform check on the input
-        self._check_input_integrity(mode="patch")
+        # self._check_input_integrity(mode="patch")
 
     def __getitem__(self, idx):
         patch = self.inputs[idx]
@@ -215,8 +215,12 @@ class WSIPatchDataset(abc.PatchDatasetABC):
         super().__init__()
 
         # Is there a generic func for path test in toolbox?
-        if not os.path.isfile(img_path):
-            raise ValueError("`img_path` must be a valid file path.")
+        is_file = False 
+        if issubclass(type(img_path), pathlib.Path): 
+            is_file = os.path.isfile(img_path) 
+        is_reader = issubclass(type(img_path), WSIReader) 
+        if sum([is_file, is_reader]) != 1: 
+            raise ValueError("`img_path` must be a valid file path or a WSIReader") 
         if mode not in ["wsi", "tile"]:
             raise ValueError(f"`{mode}` is not supported.")
         patch_input_shape = np.array(patch_input_shape)
@@ -235,9 +239,11 @@ class WSIPatchDataset(abc.PatchDatasetABC):
         ):
             raise ValueError(f"Invalid `stride_shape` value {stride_shape}.")
 
-        img_path = pathlib.Path(img_path)
         if mode == "wsi":
-            self.reader = get_wsireader(img_path)
+            if is_reader: 
+                self.reader = img_path 
+            else: 
+                self.reader = get_wsireader(pathlib.Path(img_path))
         else:
             warnings.warn(
                 (

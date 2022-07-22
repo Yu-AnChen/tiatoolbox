@@ -2035,6 +2035,8 @@ class TIFFWSIReader(WSIReader):
         axes=None
     ) -> None:
         super().__init__(input_img=input_img, mpp=mpp, power=power)
+        self.mpp = mpp
+        self.power = power
         self.tiff = tifffile.TiffFile(self.input_path)
         self._axes = self.tiff.pages[0].axes
         if axes is not None:
@@ -2226,6 +2228,9 @@ class TIFFWSIReader(WSIReader):
                 objective_power = float(objective.attrib.get("NominalMagnification"))
             except KeyError:
                 raise KeyError("No matching Instrument for image InstrumentRef in OME-XML.")
+        
+        if mpp is None: mpp = self.mpp
+        if objective_power is None: objective_power = self.power
 
         return {
             "objective_power": objective_power,
@@ -2299,12 +2304,12 @@ class TIFFWSIReader(WSIReader):
             for code, tag in tifffile_tags
         }
 
+        if self.tiff.pages[0].is_tiled:
+            filetype_params = self._parse_generic_tiled_metadata()
         if self.tiff.is_svs:
             filetype_params = self._parse_svs_metadata()
         if self.tiff.is_ome:
             filetype_params = self._parse_ome_metadata()
-        if self.tiff.pages[0].is_tiled:
-            filetype_params = self._parse_generic_tiled_metadata()
         filetype_params["raw"]["TIFF Tags"] = tiff_tags
 
         return WSIMeta(
